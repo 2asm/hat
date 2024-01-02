@@ -6,5 +6,5 @@ Stateless chat application
 ``` Console 
 $go run main.go
 ```
-go to "localhost:8080/user/@username" in web browser
-like ```localhost:8080/user/dilip```
+use web browser to access the application with link like this ```localhost:8080/user/@username``` 
+eg. ```localhost:8080/user/dilip```, ```localhost:8080/user/raj```
