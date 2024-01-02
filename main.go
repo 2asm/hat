@@ -12,7 +12,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-
 // type MessageType int
 // The message types are defined in RFC 6455, section 11.8.
 const (
@@ -48,13 +47,14 @@ const chat_channel = "chat_channel"
 
 var redis_client *redis.Client
 var clients map[string]*websocket.Conn
+
 func init() {
 	redis_client = redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
-    clients = make(map[string]*websocket.Conn)
+	clients = make(map[string]*websocket.Conn)
 }
 
 type Message struct {
@@ -70,18 +70,18 @@ var upgrader = websocket.Upgrader{
 }
 
 func PublishToChannel(typ int, user string, conn *websocket.Conn, msg_data string) {
-    new_msg := Message{
+	new_msg := Message{
 		Type: typ,
 		From: user,
 		Conn: conn,
 		Data: msg_data,
 	}
-    data, err := json.Marshal(new_msg)
-    if err != nil {
-        log.Print("Marshalling error")
-        return
-    }
-    err = redis_client.Publish(context.Background(), chat_channel, data).Err()
+	data, err := json.Marshal(new_msg)
+	if err != nil {
+		log.Print("Marshalling error")
+		return
+	}
+	err = redis_client.Publish(context.Background(), chat_channel, data).Err()
 	if err != nil {
 		log.Println("could not publish to channel", err)
 	}
@@ -113,16 +113,16 @@ func serve_ws_user(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalf("ERROR: %v", err)
 	}
-    PublishToChannel(ClientConnected, user, conn, "")
-    clients[user] = conn
+	PublishToChannel(ClientConnected, user, conn, "")
+	clients[user] = conn
 	go handleSigleConnection(user)
 }
 
 func handleSigleConnection(user string) {
 	defer func() {
-        PublishToChannel(ClientDisconnected, user, clients[user], "")
+		PublishToChannel(ClientDisconnected, user, clients[user], "")
 		clients[user].Close()
-        delete(clients, user)
+		delete(clients, user)
 	}()
 	for {
 		msg_type, msg, err := clients[user].ReadMessage()
@@ -132,27 +132,27 @@ func handleSigleConnection(user string) {
 			}
 			return
 		}
-        PublishToChannel(msg_type, user, clients[user], string(msg))
+		PublishToChannel(msg_type, user, clients[user], string(msg))
 	}
 }
 
 func handleBroadcast() {
+	pubsub := redis_client.Subscribe(context.Background(), chat_channel)
+	defer pubsub.Close()
 	for {
-        pubsub := redis_client.Subscribe(context.Background(), chat_channel)
-        defer pubsub.Close()
-        for new_msg := range pubsub.Channel() {
-            msg := Message{}
-            err := json.Unmarshal([]byte(new_msg.Payload), &msg)
-            if err != nil {
-                log.Print("Unmarshalling error")
-                return
-            }
+		for new_msg := range pubsub.Channel() {
+			msg := Message{}
+			err := json.Unmarshal([]byte(new_msg.Payload), &msg)
+			if err != nil {
+				log.Print("Unmarshalling error")
+				return
+			}
 			for user, c := range clients {
 				if msg.From != user {
 					c.WriteMessage(websocket.TextMessage, []byte(new_msg.Payload))
 				}
 			}
-        }
+		}
 	}
 }
 
@@ -183,5 +183,6 @@ func main() {
 	<-exit
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
+	redis_client.Shutdown(ctx)
 	http_server.Shutdown(ctx)
 }
