@@ -1,0 +1,87 @@
+html {
+    overflow: hidden;
+}
+
+body {
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background: lightblue;
+}
+
+.chat {
+    background: white;
+    position: absolute;
+    top: 1em;
+    left: 1em;
+    right: 1em;
+    bottom: 5em;
+    overflow: auto;
+    --rad: 15px;
+    --rad-sm: 3px;
+    font: 16px/1.5 sans-serif;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    max-width: 500px;
+    margin: auto;
+}
+
+#form {
+    padding: 1em;
+    margin: 1em;
+    position: absolute;
+    bottom: 1em;
+    text-align: center;
+    width: 100%;
+    overflow: hidden;
+}
+
+.msg {
+    position: relative;
+    max-width: 75%;
+    padding: 7px 15px;
+    margin-bottom: 2px;
+}
+
+.msg.sent {
+    border-radius: var(--rad) var(--rad-sm) var(--rad-sm) var(--rad);
+    background: #42a5f5;
+    color: #fff;
+    margin-left: auto;
+    float: right;
+}
+
+.msg.rcvd {
+    border-radius: var(--rad-sm) var(--rad) var(--rad) var(--rad-sm);
+    background: #f1f1f1;
+    color: #555;
+    margin-right: auto;
+    float: left;
+}
+
+.msg.info {
+    border-radius: var(--rad-sm) var(--rad) var(--rad) var(--rad-sm);
+    background: #e1e1e1;
+    color: #555;
+    text-align: center;
+}
+
+.msg.sent-user-timestamp {
+    border-radius: 20px;
+    font: 10px/1.5 sans-serif;
+    background: #3090a0;
+    margin: 0px;
+    padding: 2px 5px;
+}
+
+.msg.rcvd-user-timestamp {
+    border-radius: 20px;
+    background: #d0d0d0;
+    margin: 0px;
+    padding: 2px 5px;
+    font: 10px/1.5 sans-serif;
+}
+
