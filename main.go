@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
+	_"github.com/joho/godotenv"
 )
 
 // type MessageType int
@@ -50,8 +51,8 @@ var clients map[string]*websocket.Conn
 
 func init() {
 	redis_client = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
+		Addr:     "redis:6379",
+		Password: "passwd123", // no password set
 		DB:       0,  // use default DB
 	})
 	clients = make(map[string]*websocket.Conn)
@@ -67,6 +68,15 @@ type Message struct {
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+}
+
+func AlphaNumeric(s string) bool {
+    for _,c := range s{
+        if !( (c>='0' && c<='9') || (c>='a' && c<='z') || (c>='A' && c<='Z') ) {
+            return false
+        }
+    }
+    return true
 }
 
 func PublishToChannel(typ int, user string, conn *websocket.Conn, msg_data string) {
@@ -94,6 +104,10 @@ func serve_user(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user := strings.TrimPrefix(r.URL.Path, "/user/")
+    if !AlphaNumeric(user) {
+        w.Write([]byte("Not Found"))
+        return 
+    }
 	log.Println(user)
 	http.ServeFile(w, r, "static/home.html")
 }
@@ -105,10 +119,16 @@ func serve_ws_user(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Header.Get("upgrade") == "" {
+		http.Error(w, "Connection not upgraded", http.StatusBadRequest)
 		return
 	}
 	user := strings.TrimPrefix(r.URL.Path, "/ws/user/")
+    if !AlphaNumeric(user) {
+        w.Write([]byte("Not Found"))
+        return
+    }
 	log.Println(user)
+    upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Fatalf("ERROR: %v", err)
@@ -171,12 +191,12 @@ func main() {
 
 	fs := http.FileServer(http.Dir("./static"))
 	http.Handle("/user/static/", http.StripPrefix("/user/static/", fs))
-	http_server := http.Server{Addr: ":8080"}
+	http_server := http.Server{Addr: ":5000"}
 
 	go func() {
 		err := http_server.ListenAndServe()
 		if err != nil {
-			log.Fatalf("ERROR: listen on port 8080 failed %v", err)
+			log.Fatalf("ERROR: listen on port 5000 failed %v", err)
 		}
 		exit <- 1
 	}()

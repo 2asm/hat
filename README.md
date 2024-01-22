@@ -4,7 +4,7 @@ Stateless chat application
 
 ## Quick start
 ``` Console 
-$go run main.go
+$docker-compose up --scale hat=3 --build
 ```
 use web browser to access the application with link like this ```localhost:8080/user/@username``` 
 eg. ```localhost:8080/user/dilip```, ```localhost:8080/user/raj```

@@ -1,0 +1,32 @@
+version: '3.1'
+
+services:
+  nginx:
+    build: 
+      context: .
+      dockerfile: nginx.dockerfile
+    depends_on:
+      - hat 
+    ports:
+      - "4000:4000"
+
+  redis:
+    build: 
+      context: .
+      dockerfile: redis.dockerfile
+    environment:
+      REDIS_PASSWORD: passwd123
+    ports:
+      - "6379:6379"
+
+  hat:
+    build: 
+      context: .
+      dockerfile: hat.dockerfile
+    depends_on: 
+      - redis 
+    ports:
+      - "5000" 
+    # extra_hosts:
+      #  - "host.docker.internal:host-gateway"
+
