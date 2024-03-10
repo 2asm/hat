@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	_ "github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
-	_"github.com/joho/godotenv"
 )
 
 // type MessageType int
@@ -53,7 +53,7 @@ func init() {
 	redis_client = redis.NewClient(&redis.Options{
 		Addr:     "redis:6379",
 		Password: "passwd123", // no password set
-		DB:       0,  // use default DB
+		DB:       0,           // use default DB
 	})
 	clients = make(map[string]*websocket.Conn)
 }
@@ -71,12 +71,12 @@ var upgrader = websocket.Upgrader{
 }
 
 func AlphaNumeric(s string) bool {
-    for _,c := range s{
-        if !( (c>='0' && c<='9') || (c>='a' && c<='z') || (c>='A' && c<='Z') ) {
-            return false
-        }
-    }
-    return true
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+			return false
+		}
+	}
+	return true
 }
 
 func PublishToChannel(typ int, user string, conn *websocket.Conn, msg_data string) {
@@ -95,47 +95,6 @@ func PublishToChannel(typ int, user string, conn *websocket.Conn, msg_data strin
 	if err != nil {
 		log.Println("could not publish to channel", err)
 	}
-}
-
-func serve_user(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	user := strings.TrimPrefix(r.URL.Path, "/user/")
-    if !AlphaNumeric(user) {
-        w.Write([]byte("Not Found"))
-        return 
-    }
-	log.Println(user)
-	http.ServeFile(w, r, "static/home.html")
-}
-
-func serve_ws_user(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	if r.Header.Get("upgrade") == "" {
-		http.Error(w, "Connection not upgraded", http.StatusBadRequest)
-		return
-	}
-	user := strings.TrimPrefix(r.URL.Path, "/ws/user/")
-    if !AlphaNumeric(user) {
-        w.Write([]byte("Not Found"))
-        return
-    }
-	log.Println(user)
-    upgrader.CheckOrigin = func(r *http.Request) bool { return true }
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Fatalf("ERROR: %v", err)
-	}
-	PublishToChannel(ClientConnected, user, conn, "")
-	clients[user] = conn
-	go handleSigleConnection(user)
 }
 
 func handleSigleConnection(user string) {
@@ -180,12 +139,63 @@ func main() {
 
 	go handleBroadcast()
 
+	router := gin.Default()
+	// v1 := router.Group("/v1")
+
+    router.Static("/static", "./static")
+    router.LoadHTMLGlob("./static/*.html")
+
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"msg": "server online",
+		})
+	})
+
+	router.GET("/user/:username", func(c *gin.Context) {
+		// user := c.Param("username")
+		c.HTML(http.StatusOK, "home.html", gin.H{
+			"msg": "home page",
+		})
+	})
+
+	router.GET("/ws/user/:username", func(c *gin.Context) {
+        upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+        conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+        if err != nil {
+            c.JSON(500, gin.H{
+                "msg":"server error",
+            })
+        }
+		user := c.Param("username")
+        PublishToChannel(ClientConnected, user, conn, "")
+        clients[user] = conn
+        go handleSigleConnection(user)
+	})
+
+	exit := make(chan int, 0)
+	go func() {
+		err := router.Run(":5000")
+		if err != nil {
+			log.Fatalf("ERROR: listen on port 5000 failed %v", err)
+		}
+		exit <- 1
+	}()
+	<-exit
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	redis_client.Shutdown(ctx)
+}
+
+func main2() {
+
+	go handleBroadcast()
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("server online"))
 	})
 
-	http.Handle("/user/", http.HandlerFunc(serve_user))
-	http.Handle("/ws/user/", http.HandlerFunc(serve_ws_user))
+	// http.Handle("/user/", http.HandlerFunc(serve_user))
+	// http.Handle("/ws/user/", http.HandlerFunc(serve_ws_user))
 
 	exit := make(chan int, 0)
 
