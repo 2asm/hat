@@ -174,7 +174,7 @@ func main() {
 
 	exit := make(chan int, 0)
 	go func() {
-		err := router.Run(":5000")
+		err := router.Run("localhost:5000")
 		if err != nil {
 			log.Fatalf("ERROR: listen on port 5000 failed %v", err)
 		}
